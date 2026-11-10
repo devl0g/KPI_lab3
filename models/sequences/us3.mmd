@@ -1,107 +1,107 @@
 sequenceDiagram
-  actor User as "Користувач"
-  participant Server as "Сервер платформи"
-  participant DB as "База даних"
-  participant LLM as "ШІ"
+  actor User as Користувач
+  participant Server as Сервер платформи
+  participant DB as База даних
+  participant LLM as ШІ
   
-  User->>+Server: "sendMessage(userCredentials, communityId, messageText)"
-  Server->>+DB: "getUserDB(userId)"
-  DB-->>-Server: "userModel"
-  Server->>Server: "verifyUserStatus(userModel)"
+  User->>+Server: sendMessage(userCredentials, communityId, messageText)
+  Server->>+DB: getUserDB(userId)
+  DB-->>-Server: userModel
+  Server->>Server: verifyUserStatus(userModel)
 
-  break "Користувач забанений/деактивований"
-    Server-->>User: "Відхилено"
+  break Користувач забанений/деактивований
+    Server-->>User: Відхилено
   end
 
-  Server->>+DB: "getCommunityDB(communityId)"
-  DB-->>-Server: "communityModel|null"
-  Server->>Server: "verifyCommunityStatus(communityModel)"
+  Server->>+DB: getCommunityDB(communityId)
+  DB-->>-Server: communityModel|null
+  Server->>Server: verifyCommunityStatus(communityModel)
 
-  break "Спільнота не активна/призупинена"
-    Server-->>User: "Відхилено"
+  break Спільнота не активна/призупинена
+    Server-->>User: Відхилено
   end
 
-  Server->>+DB: "getCommunityDB(messageModel.community_id)"
-  DB-->>-Server: "comunityModel"
-  Server->>Server: "verifyCommunityStatus(communityModel)"
+  Server->>+DB: getCommunityDB(messageModel.community_id)
+  DB-->>-Server: comunityModel
+  Server->>Server: verifyCommunityStatus(communityModel)
 
-  break "Спільнота не активна/призупинена"
-    Server-->>User: "Відхилено"
+  break Спільнота не активна/призупинена
+    Server-->>User: Відхилено
   end
 
-  Server->>+DB: "getMembershipDB(communityId, userId)"
-  DB-->>-Server: "actorMembershipModel|null"
-  Server->>Server: "isExists(actorMembershipModel)"
+  Server->>+DB: getMembershipDB(communityId, userId)
+  DB-->>-Server: actorMembershipModel|null
+  Server->>Server: isExists(actorMembershipModel)
 
-  break "isExists повернуло false"
-    Server-->>User: "Відхилено"
+  break isExists повернуло false
+    Server-->>User: Відхилено
   end
 
-  Server->>+DB: "storeMessageDB(userId, communityId, messageText)"
-  DB-->>-Server: "ok"
-  Server-->>-User: "Успіх"
+  Server->>+DB: storeMessageDB(userId, communityId, messageText)
+  DB-->>-Server: ok
+  Server-->>-User: Успіх
 
-  Bot->>+Server: "pollMessages(botToken)"
-  Server->>+DB: "getBotCommunityDB(botToken)"
-  DB-->>-Server: "botCommunityModel|null"
-  Server->>Server: "isExists(botCommunityModel)"
+  Bot->>+Server: pollMessages(botToken)
+  Server->>+DB: getBotCommunityDB(botToken)
+  DB-->>-Server: botCommunityModel|null
+  Server->>Server: isExists(botCommunityModel)
 
-  break "isExists повернуло false"
-    Server-->>Bot: "Відхилено"
+  break isExists повернуло false
+    Server-->>Bot: Відхилено
   end
 
-  Server->>+DB: "getNewCommunityMessagesDB(botCommunityModel.community_id)"
-  DB-->>-Server: "newCommunityMessage[]"
-  Server-->>-Bot: "newCommunityMessage[]"
+  Server->>+DB: getNewCommunityMessagesDB(botCommunityModel.community_id)
+  DB-->>-Server: newCommunityMessage[]
+  Server-->>-Bot: newCommunityMessage[]
 
-  loop "Each received community message"
-    Bot->>+LLM: "llmCheckSpam(messageText)"
-    break "ШІ думає, що повідомлення - це не спам"
-      LLM-->>Bot: "false"
+  loop Each received community message
+    Bot->>+LLM: llmCheckSpam(messageText)
+    break ШІ думає, що повідомлення - це не спам
+      LLM-->>Bot: false
     end
 
-    LLM-->>-Bot: "true"
-    Bot->>+Server: "deleteMessage(botToken, messageId)"
-    Server->>+DB: "getBotCommunityDB(botToken)"
-    DB-->>-Server: "botCommunityModel"
-    Server->>Server: "isExists(botCommunityModel)"
-    Server->>Server: "verifyCommunityStatus(communityModel) -> boolean"
+    LLM-->>-Bot: true
+    Bot->>+Server: deleteMessage(botToken, messageId)
+    Server->>+DB: getBotCommunityDB(botToken)
+    DB-->>-Server: botCommunityModel
+    Server->>Server: isExists(botCommunityModel)
+    Server->>Server: verifyCommunityStatus(communityModel) -> boolean
 
-    break "isExists чи verifyCommunityStatus повернули false"
-      Server-->>Bot: "Відхилено"
+    break isExists чи verifyCommunityStatus повернули false
+      Server-->>Bot: Відхилено
     end
 
-    Server->>+DB: "getMessageDB(messageId)"
-    DB-->>-Server: "messageModel"
-    Server->>Server: "isExists(messageModel)"
+    Server->>+DB: getMessageDB(messageId)
+    DB-->>-Server: messageModel
+    Server->>Server: isExists(messageModel)
 
-    break "isExists повернуло false"
-      Server-->>Bot: "Відхилено"
+    break isExists повернуло false
+      Server-->>Bot: Відхилено
     end
 
-    break "messageModel.community_id не дорівнює botCommunityModel.community_id"
-      Server-->>Bot: "Відхилено"
+    break messageModel.community_id не дорівнює botCommunityModel.community_id
+      Server-->>Bot: Відхилено
     end
 
-    Server->>+DB: "getMembershipDB(messageModel.community_id, messageModel.author_id)"
-    DB-->>-Server: "authorMembershipModel"
-    Server->>Server: "isExists(authorMembershipModel)"
+    Server->>+DB: getMembershipDB(messageModel.community_id, messageModel.author_id)
+    DB-->>-Server: authorMembershipModel
+    Server->>Server: isExists(authorMembershipModel)
 
-    break "isExists повернуло false"
-      Server->>+DB: "deleteMessageDB(messageId)"
-      DB-->>-Server: "ok"
-      Server-->>Bot: "Успіх"
+    break isExists повернуло false
+      Server->>+DB: deleteMessageDB(messageId)
+      DB-->>-Server: ok
+      Server-->>Bot: Успіх
     end
 
-    Server->>Server: "isPrivilegedCommunityRole(authorMembershipModel.community_role)"
+    Server->>Server: isPrivilegedCommunityRole(authorMembershipModel.community_role)
 
-    break "isPrivilegedCommunityRole повернуло true"
-      Server-->>Bot: "Відхилено"
+    break isPrivilegedCommunityRole повернуло true
+      Server-->>Bot: Відхилено
     end
 
-    Server->>+DB: "deleteMessageDB(messageId)"
-    DB-->>-Server: "ok"
-    Server-->>-Bot: "Успіх"
+    Server->>+DB: deleteMessageDB(messageId)
+    DB-->>-Server: ok
+    Server-->>-Bot: Успіх
 
   end
 
