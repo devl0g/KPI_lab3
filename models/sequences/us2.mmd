@@ -1,0 +1,59 @@
+sequenceDiagram
+  actor User as "Користувач"
+  participant Server as "Сервер платформи"
+  participant DB as "База даних"
+  
+  activate Server
+
+  User->>+Server: "deleteMessage(userCredentials, messageId)"
+  Server->>+DB: "getUserDB(userId)"
+  DB-->>-Server: "userModel"
+  Server->>Server: "verifyUserStatus(userModel)"
+
+  break "Користувач забанений/деактивований"
+    Server-->>User: "Відхилено"
+  end
+
+  Server->>+DB: "getMessageDB(messageId)"
+  DB-->>-Server: "messageModel|null"
+
+  break "Повідомлення не знайдено"
+    Server-->>User: "Відхилено"
+  end
+
+  Server->>+DB: "getCommunityDB(messageModel.community_id)"
+  DB-->>-Server: "comunityModel"
+  Server->>Server: "verifyCommunityStatus(communityModel)"
+
+  break "Спільнота не активна/призупинена"
+    Server-->>User: "Відхилено"
+  end
+
+  alt "messageModel.author_id = userId (користувач є автором повідомлення)"
+    Server->>+DB: "deleteMessageDB(messageId)"
+    DB-->>-Server: "ok"
+    Server-->> User: "Успіх"
+  else "Користувач не є автором повідмолення"
+    Server->>+DB: "getMembershipDB(communityModel.community_id, userId)"
+    DB-->>-Server: "actorMembershipModel|null"
+
+    Server->>Server: "isExists(actorMembershipModel)"
+    Server->>Server: "isPrivilegedCommunityRole(actorMembershipModel.community_role)"
+    alt "isExists або isPrivilegedCommunityRole повернув false"
+      Server-->>User: "Відхилено"
+    else "Спільнотна роль привілейована"
+      Server->>+DB: "getMembershipDB(communityModel.community_id, messageModel.author_id)"
+      DB-->>-Server: "authorMembershipModel"
+      Server->>Server: "isHigherCommunityRole(actorMembershipModel.community_role, authorMembershipModel.community_role)"
+
+      alt "isHigherCommunityRole() повернув true"
+        Server->>+DB: "deleteMessageDB(messageId)"
+        DB-->>-Server: "ok"
+        Server-->>User: "Успіх"
+      else "isHigherCommunityRole повертає false"
+        Server-->>User: "Відхилено"
+      end
+    end
+  end
+
+  deactivate Server
