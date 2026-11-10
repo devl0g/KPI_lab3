@@ -112,3 +112,66 @@
 </details>
 
 # Третя лабораторна робота
+
+# UC та сценарії
+
+**Обрано:** `UC5` (видалення повідомлення спільноти).
+
+## Сценарії
+
+### US2 (де action буде "видалити повідомлення")
+
+**Учасники:** користувач, сервер платформи, база даних
+
+- Модератор має ID повідомлення спільноти, яке він хоче видалити, тож він відправляє запит серверу `deleteMessage(userCredentials, messageId)`
+- Сервер хоче перевірити користувача, для цього відправляє його ID у базу даних `getUserDB(userId) -> userModel`
+- База даних повертає його актуальну інформацію
+- Сервер перевіряє статус користувача `verifyUserStatus(userModel) -> boolean`
+- - Якщо користувач забанений, неактивний - повертаємо відхилення запиту до користувача
+- Сервер запитує повідомлення по ID у бази даних `getMessageDB(messageId) -> messageModel`
+- - Якщо повідомлення не знайдено, то повертаємо помилку
+- Інакше, отримуємо спільноту якій належить повідомлення `getCommunityDB(messageModel.community_id) -> communityModel`
+- - Якщо спільнота не активна/призупинена, то відхиляємо запит `verifyCommunityStatus(communityModel) -> boolean`
+- Перевіряємо чи наш користувач є автором повідомлення
+- - Якщо користувач - автор повідомлення, то видаляємо з бази даних повідомлення `deleteMessageDB(messageId)` та повертаємо успішну відповідь користувачу
+- Отримуємо інформацію про членство користувача `getMembershipDB(communityModel.community_id, userId) -> actorMembershipModel`
+- Валідуємо наявність членства та звіряємо роль користувача `isExists(actorMembershipModel)` `isPrivilegedCommunityRole(actorMembershipModel.community_role) -> boolean`
+- - Якщо членство не знайдено або користувач не має привілейованої ролі, то відхиляємо запит
+- Інакше, отримуємо інформацію про членство автора повідомлення `getMembershipDB(communityModel.community_id, messageModel.author_id) -> authorMembershipModel`
+- Якщо користувач є вищим по ролі з автором повідомлення, то видаляємо повідомлення та повертаємо користувачу повідомлення успіху `isHigherCommunityRole(actorMembershipModel.community_role, authorMembershipModel.community_role)`
+
+### US3
+
+**Учасники:** користувач, сервер платформи, база даних, бот, LLM
+
+- Користувач відправив повідомлення `sendMessage(userCredentials, communityId, messageText)`
+- - Він також опціонально може поставити це як відповідь на інше повідомлення
+- Сервер хоче перевірити користувача, для цього відправляє його ID у базу даних `getUserDB(userId) -> userModel`
+- База даних повертає його актуальну інформацію
+- Сервер перевіряє статус користувача `verifyUserStatus(userModel) -> boolean`
+- - Якщо користувач забанений, неактивний - повертаємо відхилення запиту до користувача
+- Інакше, отримуємо спільноту якій належить повідомлення `getCommunityDB(communityId) -> communityModel`
+- - Якщо спільнота не активна/призупинена, то відхиляємо запит `verifyCommunityStatus(communityModel) -> boolean`
+- Отримуємо інформацію про членство користувача `getMembershipDB(communityId, userId) -> actorMembershipModel`
+- - Якщо членство не знайдено, то відхиляємо запит
+- Інакше, записуємо повідомлення у базу даних `storeMessageDB(userId, communityId, messageText)`
+- Відправляємо користувачу відповідь про успіх
+- Бот запитує сервер про нові повідомлення `pollMessages(botToken)`
+- Верифікуємо та отримуємо спільноту по токену бота `getBotCommunityDB(botToken) -> botCommunityModel`
+- - Якщо спільнота не знайдена, то відхиляємо запит
+- Отримуємо нові повідомлення спільноти з бази даних `getNewCommunityMessagesDB(botCommunityModel.community_id)`
+- Сервер віддає боту всі дані всіх знайдених повідомлень
+- Бот звертається до LLM з запитом про перевірку вмісту повідомлення на спам `llmCheckSpam(messageText)`
+- - Якщо LLM відповідає, що повідомлення не спам - кінець сценарію
+- Інакше, якщо повідомлення є спамом - бот відправляє запит на видалення повідомлення `deleteMessage(botToken, messageId)`
+- Верифікуємо та отримуємо спільноту по токену бота `getBotCommunityDB(botToken) -> botCommunityModel`
+- - Якщо спільнота не знайдена або не активна/призупинена, то відхиляємо запит `verifyCommunityStatus(communityModel) -> boolean`
+- Шукаємо повідомлення в базі даних `getMessageDB(messageId) -> messageModel`
+- - Якщо повідомлення не знайдено, повертаємо боту помилку
+- Звіряємо чи повідомлення належить спільноті бота `messageModel.community_id = botCommunityModel.community_id`
+- - Якщо ні, то повертаємо помилку
+- Отримуємо членство автора повідомлення `getMembershipDB(messageModel.community_id, messageModel.author_id) -> authorMembershipModel`
+- - Якщо членство не знайдено, то видаляємо повідомлення і повертаємо боту повідомлення про успіх `deleteMessageDB(messageId)`
+- Перевіряємо привілейованість автора повідомлення `isPrivilegedCommunityRole(authorMembershipModel.community_role) -> boolean`
+- - Якщо він привілейований, повертаємо боту помилку
+- Інакше, видаляємо повідомлення і повертаємо повідомлення про успіх `deleteMessageDB(messageId)`
