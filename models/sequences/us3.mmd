@@ -2,6 +2,7 @@ sequenceDiagram
   actor User as Користувач
   participant Server as Сервер платформи
   participant DB as База даних
+  participant Bot as Бот
   participant LLM as ШІ
   
   User->>+Server: sendMessage(userCredentials, communityId, messageText)
@@ -21,19 +22,10 @@ sequenceDiagram
     Server-->>User: Відхилено
   end
 
-  Server->>+DB: getCommunityDB(messageModel.community_id)
-  DB-->>-Server: comunityModel
-  Server->>Server: verifyCommunityStatus(communityModel)
-
-  break Спільнота не активна/призупинена
-    Server-->>User: Відхилено
-  end
-
   Server->>+DB: getMembershipDB(communityId, userId)
   DB-->>-Server: actorMembershipModel|null
-  Server->>Server: isExists(actorMembershipModel)
 
-  break isExists повернуло false
+  break Членства не знайдено
     Server-->>User: Відхилено
   end
 
@@ -44,9 +36,8 @@ sequenceDiagram
   Bot->>+Server: pollMessages(botToken)
   Server->>+DB: getBotCommunityDB(botToken)
   DB-->>-Server: botCommunityModel|null
-  Server->>Server: isExists(botCommunityModel)
 
-  break isExists повернуло false
+  break Спільнота не знайдена
     Server-->>Bot: Відхилено
   end
 
@@ -73,9 +64,8 @@ sequenceDiagram
 
     Server->>+DB: getMessageDB(messageId)
     DB-->>-Server: messageModel
-    Server->>Server: isExists(messageModel)
 
-    break isExists повернуло false
+    break Повідомлення не знайдено
       Server-->>Bot: Відхилено
     end
 
@@ -85,9 +75,8 @@ sequenceDiagram
 
     Server->>+DB: getMembershipDB(messageModel.community_id, messageModel.author_id)
     DB-->>-Server: authorMembershipModel
-    Server->>Server: isExists(authorMembershipModel)
 
-    break isExists повернуло false
+    break Членства не знайдено
       Server->>+DB: deleteMessageDB(messageId)
       DB-->>-Server: ok
       Server-->>Bot: Успіх
