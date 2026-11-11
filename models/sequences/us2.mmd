@@ -2,8 +2,6 @@ sequenceDiagram
   actor User as Користувач
   participant Server as Сервер платформи
   participant DB as База даних
-  
-  activate Server
 
   User->>+Server: deleteMessage(userCredentials, messageId)
   Server->>+DB: getUserDB(userId)
@@ -32,7 +30,7 @@ sequenceDiagram
   alt messageModel.author_id = userId (користувач є автором повідомлення)
     Server->>+DB: deleteMessageDB(messageId)
     DB-->>-Server: ok
-    Server-->> User: Успіх
+    Server-->>User: Успіх
   else Користувач не є автором повідмолення
     Server->>+DB: getMembershipDB(communityModel.community_id, userId)
     DB-->>-Server: actorMembershipModel|null
