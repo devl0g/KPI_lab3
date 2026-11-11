@@ -1,8 +1,8 @@
 sequenceDiagram
+  participant LLM as ШІ
+  actor Bot as Бот
   participant Server as Сервер платформи
   participant DB as База даних
-  participant Bot as Бот
-  participant LLM as ШІ
   
   Bot->>+Server: pollMessages(botToken)
   Server->>+DB: getBotCommunityDB(botToken)
@@ -14,6 +14,13 @@ sequenceDiagram
 
   Server->>+DB: getNewCommunityMessagesDB(botCommunityModel.community_id)
   DB-->>-Server: newCommunityMessage[]
+  Server->>Server: getMaxMessageId(newCommunityMessage[])
+
+  alt Масив не порожній і ми отримали найбільше ID (lastMessageId)
+    Server->>+DB: updateCommunityBotLastMessageReceiveIdDB(botCommunityModel.community_id, lastMessageId)
+    DB-->>-Server: ok
+  end
+
   Server-->>-Bot: newCommunityMessage[]
 
   loop Each received community message
