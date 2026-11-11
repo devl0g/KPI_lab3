@@ -1,38 +1,9 @@
 sequenceDiagram
-  actor User as Користувач
   participant Server as Сервер платформи
   participant DB as База даних
   participant Bot as Бот
   participant LLM as ШІ
   
-  User->>+Server: sendMessage(userCredentials, communityId, messageText)
-  Server->>+DB: getUserDB(userId)
-  DB-->>-Server: userModel
-  Server->>Server: verifyUserStatus(userModel)
-
-  break Користувач забанений/деактивований
-    Server-->>User: Відхилено
-  end
-
-  Server->>+DB: getCommunityDB(communityId)
-  DB-->>-Server: communityModel|null
-  Server->>Server: verifyCommunityStatus(communityModel)
-
-  break Спільнота не активна/призупинена
-    Server-->>User: Відхилено
-  end
-
-  Server->>+DB: getMembershipDB(communityId, userId)
-  DB-->>-Server: actorMembershipModel|null
-
-  break Членства не знайдено
-    Server-->>User: Відхилено
-  end
-
-  Server->>+DB: storeMessageDB(userId, communityId, messageText)
-  DB-->>-Server: ok
-  Server-->>-User: Успіх
-
   Bot->>+Server: pollMessages(botToken)
   Server->>+DB: getBotCommunityDB(botToken)
   DB-->>-Server: botCommunityModel|null
