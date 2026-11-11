@@ -9,14 +9,14 @@ sequenceDiagram
   Server->>Server: verifyUserStatus(userModel)
 
   break Користувач забанений/деактивований
-    Server-->>User: Відхилено
+    Server-->>User: 403 Forbidden
   end
 
   Server->>+DB: getMessageDB(messageId)
   DB-->>-Server: messageModel|null
 
   break Повідомлення не знайдено
-    Server-->>User: Відхилено
+    Server-->>User: 404 Not Found
   end
 
   Server->>+DB: getCommunityDB(messageModel.community_id)
@@ -24,21 +24,21 @@ sequenceDiagram
   Server->>Server: verifyCommunityStatus(communityModel)
 
   break Спільнота не активна/призупинена
-    Server-->>User: Відхилено
+    Server-->>User: 403 Forbidden
   end
 
   alt messageModel.author_id = userId (користувач є автором повідомлення)
     Server->>+DB: deleteMessageDB(messageId)
     DB-->>-Server: ok
-    Server-->>User: Успіх
+    Server-->>User: 200 OK
   else Користувач не є автором повідмолення
     Server->>+DB: getMembershipDB(communityModel.community_id, userId)
     DB-->>-Server: actorMembershipModel|null
-
     Server->>Server: isExists(actorMembershipModel)
     Server->>Server: isPrivilegedCommunityRole(actorMembershipModel.community_role)
+
     alt isExists або isPrivilegedCommunityRole повернув false
-      Server-->>User: Відхилено
+      Server-->>User: 403 Forbidden
     else Спільнотна роль привілейована
       Server->>+DB: getMembershipDB(communityModel.community_id, messageModel.author_id)
       DB-->>-Server: authorMembershipModel
@@ -47,9 +47,9 @@ sequenceDiagram
       alt isHigherCommunityRole() повернув true
         Server->>+DB: deleteMessageDB(messageId)
         DB-->>-Server: ok
-        Server-->>User: Успіх
+        Server-->>User: 200 OK
       else isHigherCommunityRole повертає false
-        Server-->>User: Відхилено
+        Server-->>User: 403 Forbidden
       end
     end
   end

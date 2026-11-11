@@ -9,7 +9,7 @@ sequenceDiagram
   DB-->>-Server: botCommunityModel|null
 
   break Спільнота не знайдена
-    Server-->>Bot: Відхилено
+    Server-->>Bot: 401 Unauthorized
   end
 
   Server->>+DB: getNewCommunityMessagesDB(botCommunityModel.community_id)
@@ -37,18 +37,18 @@ sequenceDiagram
     Server->>Server: verifyCommunityStatus(communityModel) -> boolean
 
     break isExists чи verifyCommunityStatus повернули false
-      Server-->>Bot: Відхилено
+      Server-->>Bot: 403 Forbidden
     end
 
     Server->>+DB: getMessageDB(messageId)
     DB-->>-Server: messageModel
 
     break Повідомлення не знайдено
-      Server-->>Bot: Відхилено
+      Server-->>Bot: 404 Not Found
     end
 
     break messageModel.community_id не дорівнює botCommunityModel.community_id
-      Server-->>Bot: Відхилено
+      Server-->>Bot: 403 Forbidden
     end
 
     Server->>+DB: getMembershipDB(messageModel.community_id, messageModel.author_id)
@@ -57,18 +57,17 @@ sequenceDiagram
     break Членства не знайдено
       Server->>+DB: deleteMessageDB(messageId)
       DB-->>-Server: ok
-      Server-->>Bot: Успіх
+      Server-->>Bot: 200 OK
     end
 
     Server->>Server: isPrivilegedCommunityRole(authorMembershipModel.community_role)
 
-    break isPrivilegedCommunityRole повернуло true
-      Server-->>Bot: Відхилено
+    alt isPrivilegedCommunityRole повернуло true
+      Server-->>Bot: 403 Forbidden
+    else Роль спільноти не є привілейована
+      Server->>+DB: deleteMessageDB(messageId)
+      DB-->>-Server: ok
+      Server-->>-Bot: 200 OK
     end
-
-    Server->>+DB: deleteMessageDB(messageId)
-    DB-->>-Server: ok
-    Server-->>-Bot: Успіх
-
   end
 
